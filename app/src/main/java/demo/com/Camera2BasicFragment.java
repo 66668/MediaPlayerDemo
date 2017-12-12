@@ -776,37 +776,41 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
      * TEMPLATE_STILL_CAPTURE 创建一个适合于静态图像捕获的请求。
      */
     private void captureStillPicture() {
-        final Activity activity = getActivity();
-        if (null == activity || mCameraDevice == null) {
-            return;
-        }
         try {
+            final Activity activity = getActivity();
+            if (null == activity || mCameraDevice == null) {
+                return;
+            }
+
             final CaptureRequest.Builder captrueRequestBuilder =
                     mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            //添加target
+            captrueRequestBuilder.addTarget(mImageReader.getSurface());//侧了半天bug 少这一行
 
             //设置自动对焦
             captrueRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE
                     , CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-
-            //设置flash
-            if (mFlashSupported) {
-                captrueRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-            }
+            setAutoFlash(captrueRequestBuilder);
 
             int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
 
             //设置图片方向
             captrueRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, getOrientation(rotation));
-            CameraCaptureSession.CaptureCallback captureCallback =
-                    new CameraCaptureSession.CaptureCallback() {
-                        //拍照完成操作
-                        @Override
-                        public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
-                            Toast.makeText(getActivity(), "保存路径：" + (getActivity().getExternalFilesDir(null) + "/pic.jpg").toString(), Toast.LENGTH_SHORT).show();
-                            unlockFocus();
-                        }
-                    };
+            CameraCaptureSession.CaptureCallback captureCallback
+                    = new CameraCaptureSession.CaptureCallback() {
+
+                //拍照完成操作
+                @Override
+                public void onCaptureCompleted(@NonNull CameraCaptureSession session
+                        , @NonNull CaptureRequest request
+                        , @NonNull TotalCaptureResult result) {
+
+                    Toast.makeText(getActivity()
+                            , "保存路径：" + mFile.getAbsoluteFile().toString()
+                            , Toast.LENGTH_SHORT).show();
+                    unlockFocus();
+                }
+            };
 
             mCaptureSession.stopRepeating();//取消继续捕捉
             mCaptureSession.abortCaptures();//丢弃当前正在等待和正在进行中的所有捕获，并尽可能快地完成。
