@@ -20,6 +20,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
 import android.os.Handler;
@@ -39,6 +40,9 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,7 +52,6 @@ import java.util.concurrent.TimeUnit;
 
 import demo.com.util.AutoFitTextureView;
 import demo.com.util.CompareSizesByArea;
-import demo.com.util.ImageSaver;
 import demo.com.util.MLog;
 
 /**
@@ -192,7 +195,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
         @Override
         public void onImageAvailable(ImageReader reader) {
             //保存图片
-            mBackgroundHandler.post(new ImageSaver(getActivity(), reader.acquireNextImage(), mFile));
+            mBackgroundHandler.post(new ImageSaver(reader.acquireNextImage(), mFile));
         }
 
     };
@@ -218,7 +221,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
 
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-
         }
     };
 
@@ -228,30 +230,28 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     private final CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
         //相机打开就执行该方法，用于预览
         @Override
-        public void onOpened(@NonNull CameraDevice camera) {
+        public void onOpened(@NonNull CameraDevice cameraDevice) {
             mCameraOpenCloseLock.release();
-            mCameraDevice = camera;
+            mCameraDevice = cameraDevice;
             createCameraPreviewSession();
         }
 
         @Override
-        public void onDisconnected(@NonNull CameraDevice camera) {
+        public void onDisconnected(@NonNull CameraDevice cameraDevice) {
             mCameraOpenCloseLock.release();
-            camera.close();
+            cameraDevice.close();
             mCameraDevice = null;
         }
 
         @Override
-        public void onError(@NonNull CameraDevice camera, int error) {
+        public void onError(@NonNull CameraDevice cameraDevice, int error) {
             mCameraOpenCloseLock.release();
-            camera.close();
+            cameraDevice.close();
             mCameraDevice = null;
             Activity activity = getActivity();
-            if (activity != null) {
+            if (null != activity) {
                 activity.finish();
             }
-
-
         }
     };
     /**
@@ -262,15 +262,18 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
             = new CameraCaptureSession.CaptureCallback() {
 
         @Override
-        public void onCaptureProgressed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
+        public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+                                        @NonNull CaptureRequest request,
+                                        @NonNull CaptureResult partialResult) {
             process(partialResult);
         }
 
         @Override
-        public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+        public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                       @NonNull CaptureRequest request,
+                                       @NonNull TotalCaptureResult result) {
             process(result);
         }
-
 
         /**
          * 根据回调 设置result
@@ -293,21 +296,19 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                 case STATE_WAITING_LOCK: {
                     //某些设备上CONTROL_AF_STATE不存在
                     Integer afState = result.get(CaptureResult.CONTROL_AF_STATE);
-
                     if (afState == null) {
                         captureStillPicture();
                     } else if (CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED == afState ||
                             CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED == afState) {
+                        // CONTROL_AE_STATE can be null on some devices
                         Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                         if (aeState == null ||
                                 aeState == CaptureResult.CONTROL_AE_STATE_CONVERGED) {
-
                             mState = STATE_PICTURE_TAKEN;
                             captureStillPicture();
                         } else {
                             runPrecaptureSequence();
                         }
-
                     }
                     break;
                 }
@@ -316,15 +317,14 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
                     if (aeState == null ||
                             aeState == CaptureResult.CONTROL_AE_STATE_PRECAPTURE ||
-                            aeState == CaptureResult.CONTROL_AE_STATE_FLASH_REQUIRED) {
+                            aeState == CaptureRequest.CONTROL_AE_STATE_FLASH_REQUIRED) {
                         mState = STATE_WAITING_NON_PRECAPTURE;
                     }
                     break;
                 }
                 case STATE_WAITING_NON_PRECAPTURE: {
                     Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
-                    if (aeState == null ||
-                            aeState != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
+                    if (aeState == null || aeState != CaptureResult.CONTROL_AE_STATE_PRECAPTURE) {
                         mState = STATE_PICTURE_TAKEN;
                         captureStillPicture();
                     }
@@ -378,7 +378,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
-        mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
+        mFile = new File(getActivity().getExternalFilesDir(null), "aapic.jpg");
     }
 
     @Override
@@ -751,7 +751,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
      * 启动一个静态图像捕获。
      */
     private void takePicture() {
-
         lockFocus();
     }
 
@@ -765,9 +764,8 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             //告诉回调mCaptureCallback，等待锁定
             mState = STATE_WAITING_LOCK;
-            //
-            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
-
+            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback,
+                    mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
@@ -905,6 +903,45 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
         }
 
     }
+    private class ImageSaver implements Runnable {
+        /**
+         * The JPEG image
+         */
+        private final Image mImage;
+        /**
+         * The file we save the image into.
+         */
+        private final File mFile;
 
+        ImageSaver(Image image, File file) {
+            mImage = image;
+            mFile = file;
+        }
+
+        @Override
+        public void run() {
+            ByteBuffer buffer = mImage.getPlanes()[0].getBuffer();
+            byte[] bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+            FileOutputStream output = null;
+            try {
+                output = new FileOutputStream(mFile);
+                output.write(bytes);
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                mImage.close();
+                if (null != output) {
+                    try {
+                        output.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+
+    }
 
 }
