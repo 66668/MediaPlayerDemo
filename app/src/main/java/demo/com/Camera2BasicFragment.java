@@ -75,40 +75,39 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     private static final String TAG = "Camera2BasicFragment";
 
     /**
-     * Camera state: Showing camera preview.
+     * 相机状态：展示相机预览
      */
     private static final int STATE_PREVIEW = 0;
 
     /**
-     * Camera state: Waiting for the focus to be locked.
+     * 相机状态： 等待焦点被锁定.
      */
     private static final int STATE_WAITING_LOCK = 1;
 
     /**
-     * Camera state: Waiting for the exposure to be precapture state.
+     * 相机状态: Waiting for the exposure to be precapture state.
      */
     private static final int STATE_WAITING_PRECAPTURE = 2;
 
     /**
-     * Camera state: Waiting for the exposure state to be something other than precapture.
+     * 相机状态: Waiting for the exposure state to be something other than precapture.
      */
     private static final int STATE_WAITING_NON_PRECAPTURE = 3;
 
     /**
-     * Camera state: Picture was taken.
+     * 相机状态:Picture was taken.
      */
     private static final int STATE_PICTURE_TAKEN = 4;
-
 
     /**
      * Max preview width that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_WIDTH = 1920;
+    private static final int MAX_PREVIEW_WIDTH = 1080;
 
     /**
      * Max preview height that is guaranteed by Camera2 API
      */
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
+    private static final int MAX_PREVIEW_HEIGHT = 1920;
 
 
     //==========================================变量===================================================
@@ -150,7 +149,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
 
 
     /**
-     * 处理图片拍照
+     * 处理静态图片拍照
      */
 
     private ImageReader mImageReader;
@@ -166,12 +165,11 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     private boolean mFlashSupported;
 
     /**
-     * Orientation of the camera sensor
+     * 相机的方向
      */
     private int mSensorOrientation;
 
     /**
-     * An additional thread for running tasks that shouldn't block the UI.
      * 子线程
      */
     private HandlerThread mBackgroundThread;
@@ -198,7 +196,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
         }
 
     };
-
 
     /**
      * 布局视图的监听，用户处理视图生命周期的事件
@@ -235,7 +232,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
             mCameraOpenCloseLock.release();
             mCameraDevice = camera;
             createCameraPreviewSession();
-
         }
 
         @Override
@@ -371,6 +367,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
 
     }
 
+    //初始化控件
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         btn = view.findViewById(R.id.picture);
@@ -406,26 +403,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
         super.onPause();
     }
 
-    /**
-     * Starts a background thread and its {@link Handler}.
-     */
-    private void startBackgroundThread() {
-        mBackgroundThread = new HandlerThread("CameraBackground");
-        mBackgroundThread.start();
-        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
-    }
-
-    private void stopBackgroundThread() {
-        mBackgroundThread.quitSafely();
-        try {
-            mBackgroundThread.join();
-            mBackgroundThread = null;
-            mBackgroundHandler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-    }
 
     /**
      * 创建相机流程控制类
@@ -451,7 +428,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                         //当摄像机设备完成配置时，这个方法就会被调用，session可以开始处理捕获请求。
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession session) {
-                            // 相机关闭
+                            // 关闭
                             if (null == mCameraDevice) {
                                 return;
                             }
@@ -473,6 +450,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                                 //启动预览
                                 mPreviewRequest = mPreviewRequestBuilder.build();
 
+                                //流程类 集成
                                 mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback, mBackgroundHandler);
                             } catch (CameraAccessException e) {
                                 e.printStackTrace();
@@ -503,13 +481,15 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     @SuppressWarnings("SuspiciousNameCombination")
     private void setUpCameraOutputs(int width, int height) {
         Activity activity = getActivity();
+        //获取相机管理
         CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
         try {
             for (String cameraId : manager.getCameraIdList()) {
-                CameraCharacteristics cameraCharacteristics
-                        = manager.getCameraCharacteristics(cameraId);
 
-                // We don't use a front facing camera in this sample.
+                //通过相机管理 获取 相机属性
+                CameraCharacteristics cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
+
+                // 不用前置摄像头演示demo
                 Integer facing = cameraCharacteristics.get(CameraCharacteristics.LENS_FACING);
                 if (facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     //不使用前置
@@ -517,16 +497,13 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                 }
 
                 //获取配置属性
-                StreamConfigurationMap map =
-                        cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 if (map == null) {
                     continue;
                 }
                 //相机拍照，选择最大的Size
                 Size largestSize = Collections.max(
-                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
-                        new CompareSizesByArea()
-                );
+                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)), new CompareSizesByArea());
 
                 //初始化指定的ImageReader
                 mImageReader = ImageReader.newInstance(largestSize.getWidth(),
@@ -608,6 +585,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                 Boolean isFlashSupport = cameraCharacteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
                 mFlashSupported = isFlashSupport == null ? false : isFlashSupport;
 
+                //获取当前的相机id
                 mCameraId = cameraId;
                 return;
             }
@@ -620,7 +598,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     }
 
     /**
-     * Opens the camera specified by {@link Camera2BasicFragment#mCameraId}.
      * 打开相机
      */
     private void openCamera(int width, int height) {
@@ -637,6 +614,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                 throw new RuntimeException("Time out waiting to lock camera opening.");
             }
 
+            //打开相机
             manager.openCamera(mCameraId, mStateCallback, mBackgroundHandler);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -646,7 +624,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     }
 
     /**
-     * Closes the current {@link CameraDevice}.
+     * 关闭相机
      */
     private void closeCamera() {
         try {
@@ -670,6 +648,26 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
         }
     }
 
+    /**
+     * Starts a background thread and its {@link Handler}.
+     */
+    private void startBackgroundThread() {
+        mBackgroundThread = new HandlerThread("CameraBackground");
+        mBackgroundThread.start();
+        mBackgroundHandler = new Handler(mBackgroundThread.getLooper());
+    }
+
+    private void stopBackgroundThread() {
+        mBackgroundThread.quitSafely();
+        try {
+            mBackgroundThread.join();
+            mBackgroundThread = null;
+            mBackgroundHandler = null;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+    }
 
     /**
      * 为TextureView配置必要的Matrix,这个方法应该在摄像机预览size确定且TextureView的尺寸修复后被调用
@@ -704,8 +702,8 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
 
     /**
      * 如果有一个摄像头所支持Size的选择，那么选择最小的一个
-     * 至少和纹理视图的大小一样大，最多也就是这个大小
-     * 各自的最大大小，以及其方面的比率与指定的值相匹配。如果这样的大小
+     * 至少和纹理视图的Size一样大，最多也就是这个Size
+     * 各自的最大Size，以及其方面的比率与指定的值相匹配。如果这样的Size
      * 不存在，选择最大的最大值和最大的最大值，
      * 它的纵横比与指定的值相匹配。
      *
@@ -738,8 +736,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
             }
         }
 
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
+        //选择最大中的最小的Size,如果没有，就选择不是最大中的最大Size
         if (bigEnough.size() > 0) {
             return Collections.min(bigEnough, new CompareSizesByArea());
         } else if (notBigEnough.size() > 0) {
@@ -768,6 +765,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                     CameraMetadata.CONTROL_AF_TRIGGER_START);
             //告诉回调mCaptureCallback，等待锁定
             mState = STATE_WAITING_LOCK;
+            //
             mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
 
         } catch (CameraAccessException e) {
@@ -831,24 +829,28 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
             //重新设置自动对焦的触发
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER,
                     CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-            //设置flash
-            if (mFlashSupported) {
-                mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
-                        CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-            }
 
-            //
-            mPreviewRequest = mPreviewRequestBuilder.build();
-            mCaptureSession.capture(mPreviewRequest, mCaptureCallback, mBackgroundHandler);
-            //以上操作，相机重新回到预览状态
+            //设置自动对焦
+            setAutoFlash(mPreviewRequestBuilder);
+
+            mCaptureSession.capture(mPreviewRequestBuilder.build(), mCaptureCallback, mBackgroundHandler);
+
+            // 拍照后，重新设置成预览状态
             mState = STATE_PREVIEW;
-            //启动预览
+            //
             mCaptureSession.setRepeatingRequest(mPreviewRequest, mCaptureCallback, mBackgroundHandler);
+
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }
 
+    private void setAutoFlash(CaptureRequest.Builder requestBuilder) {
+        if (mFlashSupported) {
+            requestBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+                    CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+        }
+    }
     /**
      * 从指定的屏幕旋转中检索JPEG朝向。
      *
