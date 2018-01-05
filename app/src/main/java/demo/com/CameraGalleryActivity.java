@@ -12,9 +12,12 @@ import android.widget.ImageView;
  */
 
 public class CameraGalleryActivity extends AppCompatActivity implements View.OnClickListener {
-    Button btn_camera;
-    Button btn_gallery;
-    ImageView image;
+    private static final int REQUEST_CODE_IMAGE_CAMERA = 1;
+    private static final int REQUEST_CODE_IMAGE_OP = 2;
+
+    private Button btn_camera;
+    private Button btn_gallery;
+    private ImageView image;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -34,9 +37,14 @@ public class CameraGalleryActivity extends AppCompatActivity implements View.OnC
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.camera:
+
                 break;
             case R.id.gallery:
+
                 break;
         }
     }
+
+
+
 }

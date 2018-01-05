@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void startCameraGallery() {
-        Intent intent = new Intent(this, Camera2BaseActivity.class);
+        Intent intent = new Intent(this, CameraGalleryActivity.class);
         startActivity(intent);
 
     }
