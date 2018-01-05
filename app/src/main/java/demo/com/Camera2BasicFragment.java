@@ -171,7 +171,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
      * 相机的方向
      */
     private int mSensorOrientation;
-
     /**
      * 子线程
      */
@@ -409,6 +408,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
      */
     private void createCameraPreviewSession() {
         try {
+            //布局使用的Surface
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
             assert texture != null;//断言
             //设置图片流的尺寸
@@ -437,7 +437,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
 
                             //参数类设置特定属性
                             try {
-                                //设置自动对焦
+                                //设置图片流自动对焦
                                 mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE
                                         , CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
 
@@ -468,8 +468,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-
-
     }
 
     /**
@@ -482,7 +480,10 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
     private void setUpCameraOutputs(int width, int height) {
         Activity activity = getActivity();
         //获取相机管理
-        CameraManager manager = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+        CameraManager manager
+//                = activity.getSystemService(CameraManager.class);
+                = (CameraManager) activity.getSystemService(Context.CAMERA_SERVICE);
+
         try {
             for (String cameraId : manager.getCameraIdList()) {
 
@@ -511,7 +512,7 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                         ImageFormat.JPEG,
                         2);
 
-                //设置回调监听
+                //设置图片数据回调监听
                 mImageReader.setOnImageAvailableListener(mOnImageAvailableListener, mBackgroundHandler);
 
                 //找出我们是否需要交换尺寸来获得相对于传感器的预览尺寸
@@ -520,7 +521,6 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
                 mSensorOrientation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
                 MLog.d("默认的角度mSensorOrientation：", mSensorOrientation);
                 boolean isSwapDimension = false;//交换尺寸标记
-                // TODO: 2017/11/30 最好换成范围，而不是固定的四个值
                 switch (displayRotation) {
                     case Surface.ROTATION_0:
                     case Surface.ROTATION_180:
@@ -784,10 +784,10 @@ public class Camera2BasicFragment extends Fragment implements View.OnClickListen
 
             final CaptureRequest.Builder captrueRequestBuilder =
                     mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-            //添加target
+            //向该请求的目标列表添加一个表面
             captrueRequestBuilder.addTarget(mImageReader.getSurface());//侧了半天bug 少这一行
 
-            //设置自动对焦
+            //设置图片流自动对焦
             captrueRequestBuilder.set(CaptureRequest.CONTROL_AF_MODE
                     , CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
             setAutoFlash(captrueRequestBuilder);
